@@ -45,14 +45,23 @@
   .sw{width:14px;height:14px;border-radius:4px;display:inline-block}
   #file{display:none}
   .small{color:var(--sub);font-size:13px}
-  #shutter{display:none;position:fixed;left:0;right:0;bottom:0;justify-content:center;gap:12px;z-index:20;
-    padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line)}
-  #shutter button{min-width:120px;font-weight:700}
+  #liveBar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:20;flex-direction:column;gap:8px;
+    padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+    background:rgba(0,0,0,.85);color:#fff}
+  #liveBar .row{justify-content:center;flex-wrap:nowrap;margin:0!important}
+  #liveBar button{background:#2b2f36;color:#fff;border-color:#474d57}
+  #liveBar button.on{background:var(--main);border-color:var(--main)}
+  #liveBar input[type=number]{width:86px;background:#2b2f36;color:#fff;border-color:#474d57}
+  #bShoot{width:76px;height:76px;min-height:76px;border-radius:50%;background:#fff!important;border:6px solid #9aa3af!important;padding:0}
+  body.live{overflow:hidden;background:#000}
+  body.live .wk,body.live #topCard,body.live #listCard,body.live .note,body.live h1{display:none!important}
+  body.live #work{border:0;padding:0;background:none;margin:0}
+  #wrap.live{position:fixed;top:env(safe-area-inset-top,0px);left:50%;transform:translateX(-50%);border-radius:0;margin:0!important;z-index:10}
   #camMsg{color:#dc2626;font-size:14px;margin:8px 0 0}
 </style>
 <h1>📐 写真で寸法を測る</h1>
 
-<div class="card">
+<div class="card" id="topCard">
   <div class="row">
     <label class="btn main" for="file">📷 写真を撮る／選ぶ</label>
     <input id="file" type="file" accept="image/*">
@@ -86,9 +95,9 @@
   </div>
 
   <div class="row seg">
-    <button id="bQuad" class="on">① 四角を合わせる</button>
+    <button id="bQuad" class="on">① 合わせる</button>
     <button id="bMea">② 測る</button>
-    <button id="bDiag" style="display:none">③ 斜め（3D）</button>
+    <button id="bDiag" style="display:none">③ 3D斜め</button>
   </div>
 
   <div id="wrap" style="margin-top:10px"><canvas id="cv"></canvas>
@@ -112,7 +121,18 @@
   奥行きは、横の壁など別の面に「＋面を追加」して測ります。「＋立方体」を使うと、箱の3つの面（上・左・右）を一度に合わせられます。
 </p>
 
-<div id="shutter"><button id="bShoot" class="main">● 撮影</button><button id="bStop">やめる</button></div>
+<div id="liveBar">
+  <div class="row">
+    <button id="lSq" class="on">四角</button><button id="lCube">立方体</button>
+    <span>1辺</span><input id="lsz" type="number" inputmode="decimal"><span>mm</span>
+  </div>
+  <div class="row">
+    <span>濃さ</span><input id="lalpha" type="range" min="10" max="90" value="50" style="max-width:220px"><span id="lalphaV">50%</span>
+  </div>
+  <div class="row" style="justify-content:space-between">
+    <button id="bStop">やめる</button><button id="bShoot" aria-label="撮影"></button><span style="min-width:76px"></span>
+  </div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -180,7 +200,7 @@ function recalc(pl){
 }
 
 function newPlane(i){
-  const side = .3*Math.min(nw,nh), hx = side/2/nw, hy = side/2/nh, o = i*.04;
+  const side = .45*Math.min(nw,nh), hx = side/2/nw, hy = side/2/nh, o = i*.04;
   const pl = {w:1000, h_mm:1000, items:[],
     quad:[{x:.5-hx+o,y:.5-hy+o},{x:.5+hx+o,y:.5-hy+o},{x:.5+hx+o,y:.5+hy+o},{x:.5-hx+o,y:.5+hy+o}]};
   recalc(pl); return pl;
@@ -188,7 +208,7 @@ function newPlane(i){
 // 立方体（サイコロ）：見える3面（上・左・右）が、角の点を共有する
 function newCube(){
   const S = planes[act] ? planes[act].w : 1000, g = ++groupSeq;
-  const r = .17*Math.min(nw,nh), o = planes.length*.02, c = .8660254;
+  const r = .27*Math.min(nw,nh), o = planes.length*.02, c = .8660254;
   const P = (dx,dy) => ({x:Math.min(.98,Math.max(.02,.5+dx*r/nw+o)), y:Math.min(.98,Math.max(.02,.5+dy*r/nh+o))});
   const p0 = P(0,0), p1 = P(-c,-.5), p2 = P(0,-1), p3 = P(c,-.5), p4 = P(-c,.5), p5 = P(0,1), p6 = P(c,.5);
   const mk = (name,quad,role) => ({w:S,h_mm:S,items:[],quad,name:'立方体'+g+'・'+name,group:g,role});
@@ -224,11 +244,12 @@ function measure(pl,a,b){
 /* ---------- 描画 ---------- */
 function layout(){
   if(!img) return;
-  const wr = $('wrap'); wr.style.maxWidth = ''; wr.style.margin = '10px 0 0';
+  const wr = $('wrap');
   if(live){
-    const mw = Math.floor(window.innerHeight*0.6*nw/nh);
-    if(mw < wr.parentElement.clientWidth){ wr.style.maxWidth = mw + 'px'; wr.style.margin = '10px auto 0'; }
-  }
+    const barH = $('liveBar').offsetHeight || 190;
+    const availH = window.innerHeight - barH - 8, availW = window.innerWidth;
+    wr.style.width = Math.floor(Math.min(availW, availH*nw/nh)) + 'px'; wr.style.margin = '';
+  } else { wr.style.width = ''; wr.style.margin = '10px 0 0'; }
   cssW = wr.clientWidth; cssH = cssW*nh/nw;
   dpr = window.devicePixelRatio || 1;
   cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr);
@@ -287,7 +308,7 @@ function draw(){
     });
     // 面の名前
     const cx = (q[0].x+q[1].x+q[2].x+q[3].x)/4, cy = (q[0].y+q[1].y+q[2].y+q[3].y)/4;
-    label(cx,cy,(pl.name || '面'+(i+1))+'  '+pl.w+'×'+pl.h_mm,col);
+    if(!live) label(cx,cy,(pl.name || '面'+(i+1))+'  '+pl.w+'×'+pl.h_mm,col);
   });
 
   // 空間の斜め（3D）
@@ -310,7 +331,7 @@ function draw(){
     const gp = cur.group ? planes.filter(p => p.group === cur.group) : [cur], seen = new Set();
     gp.forEach(pl => pl.quad.forEach((p,k) => {
       if(seen.has(p)) return; seen.add(p);
-      dot(p,col,9);
+      dot(p,col,11);
       if(!cur.group){
         const c = C(p);
         ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -373,13 +394,13 @@ cv.addEventListener('pointerdown', e => {
       return true;
     };
     const f = gp.find(inside) || pl;   // 立方体の面の中なら、その面。外なら、選んでいる面
-    if(!f.ok){ setHint('先に「① 四角を合わせる」で、立方体を正しく合わせてください。',true); return; }
+    if(!f.ok){ setHint('先に「① 合わせる」で、立方体を正しく合わせてください。',true); return; }
     let last = diags[diags.length-1];
     if(!last || last.g !== pl.group || last.pts.length >= 2){ last = {g:pl.group, pts:[]}; diags.push(last); }
     const pt = {x:pos.x, y:pos.y, f}; last.pts.push(pt); drag = {p:pt, pl:f};
   }
   else if(mode === 'mea'){
-    if(!pl.ok){ setHint('先に「① 四角を合わせる」で、四角を正しく合わせてください。',true); return; }
+    if(!pl.ok){ setHint('先に「① 合わせる」で、四角を正しく合わせてください。',true); return; }
     let last = pl.items[pl.items.length-1];
     if(!last || last.length >= 2){ last = []; pl.items.push(last); }
     last.push(pos); drag = {p:pos, pl};
@@ -425,6 +446,7 @@ function syncInputs(){
     const el = $(id); if(document.activeElement !== el) el.value = v;
   });
   document.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', +b.dataset.s === pl.w && pl.w === pl.h_mm));
+  syncLive();
 }
 function update(){
   const pl0 = planes[act];
@@ -481,6 +503,8 @@ document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
 ['sh','eh'].forEach(id => $(id).addEventListener('input', e => { const v = parseFloat(e.target.value); if(v > 0){ setSize(planes[act],null,v); syncInputs(); update(); } }));
 function placeEdit(){
   const pl = planes[act]; if(!pl) return;
+  $('ew').style.display = $('eh').style.display = live ? 'none' : '';
+  if(live) return;
   const a = C(pl.quad[0]), b = C(pl.quad[1]), d = C(pl.quad[3]);
   const put = (el,x,y) => { el.style.left = Math.min(cssW-48,Math.max(48,x)) + 'px'; el.style.top = Math.min(cssH-18,Math.max(18,y)) + 'px'; };
   put($('ew'),(a.x+b.x)/2,(a.y+b.y)/2); put($('eh'),(a.x+d.x)/2,(a.y+d.y)/2);
@@ -518,17 +542,33 @@ async function startCam(){
   await vid.play();
   if(!vid.videoWidth) await new Promise(r => vid.addEventListener('loadedmetadata', r, {once:true}));
   nw = vid.videoWidth; nh = vid.videoHeight; img = vid; live = true;
-  if(!planes.length) planes = [newPlane(0)]; else planes.forEach(p => { p.items = []; recalc(p); });
-  diags = []; act = Math.min(act, planes.length-1);
-  $('work').style.display = ''; $('shutter').style.display = 'flex';
+  const S0 = planes[act] ? planes[act].w : 1000;
+  planes = [newPlane(0)]; act = 0; diags = []; setSize(planes[0],S0,S0);
+  document.body.classList.add('live'); $('wrap').classList.add('live');
+  $('work').style.display = ''; $('liveBar').style.display = 'flex';
   renderTabs(); syncInputs(); setMode('quad'); layout();
   (function tick(){ if(!live) return; draw(); requestAnimationFrame(tick); })();
 }
 function stopCam(){
   live = false;
   if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
-  $('shutter').style.display = 'none';
+  $('liveBar').style.display = 'none';
+  document.body.classList.remove('live'); $('wrap').classList.remove('live'); $('wrap').style.width = '';
 }
+function syncLive(){
+  const pl = planes[act]; if(!pl) return;
+  $('lSq').classList.toggle('on', !pl.group); $('lCube').classList.toggle('on', !!pl.group);
+  if(document.activeElement !== $('lsz')) $('lsz').value = pl.w;
+}
+$('lSq').onclick = () => { const S = planes[act].w; planes = [newPlane(0)]; act = 0; setSize(planes[0],S,S); diags = []; syncInputs(); renderTabs(); update(); };
+$('lCube').onclick = () => { const c = newCube(); planes = c; act = 0; diags = []; syncInputs(); renderTabs(); update(); };
+$('lsz').addEventListener('input', e => { const v = parseFloat(e.target.value); if(v > 0){ setSize(planes[act],v,v); syncInputs(); update(); } });
+$('lalpha').addEventListener('input', e => {
+  alpha = e.target.value/100; $('lalphaV').textContent = e.target.value + '%';
+  $('alpha').value = e.target.value; $('alphaV').textContent = e.target.value + '%'; draw();
+});
+document.querySelectorAll('#work > .row, #hint').forEach(e => e.classList.add('wk'));
+{ const nt = document.querySelector('body > p.small'); if(nt) nt.classList.add('note'); }
 function shoot(){
   const c = document.createElement('canvas'); c.width = nw; c.height = nh;
   c.getContext('2d').drawImage(vid,0,0,nw,nh);
