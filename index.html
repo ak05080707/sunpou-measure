@@ -260,9 +260,9 @@ const C = p => ({x:p.x*cssW, y:p.y*cssH});
 
 function dot(p,color,r){
   const c = C(p);
-  ctx.beginPath(); ctx.arc(c.x,c.y,r+4,0,7); ctx.fillStyle = color; ctx.globalAlpha = .3; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(c.x,c.y,r+3,0,7); ctx.fillStyle = color; ctx.globalAlpha = .3; ctx.fill(); ctx.globalAlpha = 1;
   ctx.beginPath(); ctx.arc(c.x,c.y,r,0,7); ctx.fillStyle = color; ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
 }
 function label(x,y,text,color){
   ctx.font = 'bold 14px -apple-system,sans-serif';
@@ -331,11 +331,15 @@ function draw(){
     const gp = cur.group ? planes.filter(p => p.group === cur.group) : [cur], seen = new Set();
     gp.forEach(pl => pl.quad.forEach((p,k) => {
       if(seen.has(p)) return; seen.add(p);
-      dot(p,col,6);
+      dot(p,col,3);
       if(!cur.group){
-        const c = C(p);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(k+1,c.x,c.y+.5);
+        // 番号は、点の外側（四角の中心から遠いほう）に小さく出す
+        const c = C(p), m = pl.quad.map(C), mx = (m[0].x+m[1].x+m[2].x+m[3].x)/4, my = (m[0].y+m[1].y+m[2].y+m[3].y)/4;
+        const vx = c.x-mx, vy = c.y-my, vl = Math.hypot(vx,vy) || 1;
+        const tx = c.x+vx/vl*11, ty = c.y+vy/vl*11;
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(k+1,tx,ty);
+        ctx.fillStyle = '#fff'; ctx.fillText(k+1,tx,ty);
       }
     }));
   }
