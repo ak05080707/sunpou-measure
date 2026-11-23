@@ -200,7 +200,7 @@ function recalc(pl){
 }
 
 function newPlane(i){
-  const side = .45*Math.min(nw,nh), hx = side/2/nw, hy = side/2/nh, o = i*.04;
+  const side = .26*Math.min(nw,nh), hx = side/2/nw, hy = side/2/nh, o = i*.04;
   const pl = {w:1000, h_mm:1000, items:[],
     quad:[{x:.5-hx+o,y:.5-hy+o},{x:.5+hx+o,y:.5-hy+o},{x:.5+hx+o,y:.5+hy+o},{x:.5-hx+o,y:.5+hy+o}]};
   recalc(pl); return pl;
@@ -208,7 +208,7 @@ function newPlane(i){
 // 立方体（サイコロ）：見える3面（上・左・右）が、角の点を共有する
 function newCube(){
   const S = planes[act] && planes[act].group ? planes[act].w : 300, g = ++groupSeq; // 初期値300mm（100/300/500/1000から選べる）
-  const r = .27*Math.min(nw,nh), o = planes.length*.02, c = .8660254;
+  const r = .15*Math.min(nw,nh), o = planes.length*.02, c = .8660254;
   const P = (dx,dy) => ({x:Math.min(.98,Math.max(.02,.5+dx*r/nw+o)), y:Math.min(.98,Math.max(.02,.5+dy*r/nh+o))});
   const p0 = P(0,0), p1 = P(-c,-.5), p2 = P(0,-1), p3 = P(c,-.5), p4 = P(-c,.5), p5 = P(0,1), p6 = P(c,.5);
   const mk = (name,quad,role) => ({w:S,h_mm:S,items:[],quad,name:'立方体'+g+'・'+name,group:g,role});
