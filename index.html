@@ -75,7 +75,7 @@
 <div class="card" id="work" style="display:none">
   <div class="row" id="tabs"></div>
 
-  <div class="row">
+  <div class="row" id="sizeRow1">
     <span>基準の四角</span>
     <button class="chip" data-s="100">100</button>
     <button class="chip" data-s="300">300</button>
@@ -83,7 +83,7 @@
     <button class="chip" data-s="1000">1000</button>
     <span class="small">mm</span>
   </div>
-  <div class="row">
+  <div class="row" id="sizeRow2">
     <span>横</span><input id="sw" type="number" inputmode="decimal">
     <span>縦</span><input id="sh" type="number" inputmode="decimal">
     <span class="small">mm</span>
@@ -124,7 +124,7 @@
 <div id="liveBar">
   <div class="row">
     <button id="lSq" class="on">四角</button><button id="lCube">立方体</button>
-    <span>1辺</span><input id="lsz" type="number" inputmode="decimal"><span>mm</span>
+    <span id="lszBox"><span>1辺</span> <input id="lsz" type="number" inputmode="decimal"> <span>mm</span></span>
   </div>
   <div class="row">
     <span>濃さ</span><input id="lalpha" type="range" min="10" max="90" value="50" style="max-width:220px"><span id="lalphaV">50%</span>
@@ -207,7 +207,7 @@ function newPlane(i){
 }
 // 立方体（サイコロ）：見える3面（上・左・右）が、角の点を共有する
 function newCube(){
-  const S = planes[act] ? planes[act].w : 1000, g = ++groupSeq;
+  const S = 1000, g = ++groupSeq; // 立方体の1辺は 1000 mm で固定
   const r = .27*Math.min(nw,nh), o = planes.length*.02, c = .8660254;
   const P = (dx,dy) => ({x:Math.min(.98,Math.max(.02,.5+dx*r/nw+o)), y:Math.min(.98,Math.max(.02,.5+dy*r/nh+o))});
   const p0 = P(0,0), p1 = P(-c,-.5), p2 = P(0,-1), p3 = P(c,-.5), p4 = P(-c,.5), p5 = P(0,1), p6 = P(c,.5);
@@ -446,6 +446,7 @@ function syncInputs(){
     const el = $(id); if(document.activeElement !== el) el.value = v;
   });
   document.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', +b.dataset.s === pl.w && pl.w === pl.h_mm));
+  $('sizeRow1').style.display = $('sizeRow2').style.display = pl.group ? 'none' : '';
   syncLive();
 }
 function update(){
@@ -460,7 +461,7 @@ function update(){
     if(!pl.ok) setHint('四角の形がおかしい（ねじれている）です。①②③④の順に、実物の角に合わせてください。',true);
     else if(live) setHint('カメラ中です。四角（または立方体）の角を、実物の角に合わせます。合ったら、下の「● 撮影」を押します。');
     else if(mode === 'quad') setHint(pl.group
-      ? '立方体の7つの角をドラッグして、実物の箱の角に合わせます。上・左・右の3面が、それぞれ測れる面になります。数字（mm）は1辺の長さです。'
+      ? '立方体の7つの角をドラッグして、実物の箱の角に合わせます。上・左・右の3面が、それぞれ測れる面になります。立方体の1辺は1000mm（1m）で固定です。'
       : '半透明の四角の角（①②③④）をドラッグして、実物の四角の角に合わせます。線の上の数字（mm）をタップすると、長さを打ち直せます。合ったら「② 測る」へ。');
     else if(mode === 'diag') setHint('空間の斜めを測ります。2か所をタップしてください。立方体の面の中をタップするとその面の点になります。立方体の外（壁など）は、上のタブで選んだ面の上の点になります。');
     else setHint('測りたい場所の両端を2か所タップします。点はドラッグで動かせます。');
@@ -503,8 +504,8 @@ document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
 ['sh','eh'].forEach(id => $(id).addEventListener('input', e => { const v = parseFloat(e.target.value); if(v > 0){ setSize(planes[act],null,v); syncInputs(); update(); } }));
 function placeEdit(){
   const pl = planes[act]; if(!pl) return;
-  $('ew').style.display = $('eh').style.display = live ? 'none' : '';
-  if(live) return;
+  $('ew').style.display = $('eh').style.display = (live || pl.group) ? 'none' : '';
+  if(live || pl.group) return;
   const a = C(pl.quad[0]), b = C(pl.quad[1]), d = C(pl.quad[3]);
   const put = (el,x,y) => { el.style.left = Math.min(cssW-48,Math.max(48,x)) + 'px'; el.style.top = Math.min(cssH-18,Math.max(18,y)) + 'px'; };
   put($('ew'),(a.x+b.x)/2,(a.y+b.y)/2); put($('eh'),(a.x+d.x)/2,(a.y+d.y)/2);
@@ -559,8 +560,9 @@ function syncLive(){
   const pl = planes[act]; if(!pl) return;
   $('lSq').classList.toggle('on', !pl.group); $('lCube').classList.toggle('on', !!pl.group);
   if(document.activeElement !== $('lsz')) $('lsz').value = pl.w;
+  $('lszBox').style.display = pl.group ? 'none' : '';
 }
-$('lSq').onclick = () => { const S = planes[act].w; planes = [newPlane(0)]; act = 0; setSize(planes[0],S,S); diags = []; syncInputs(); renderTabs(); update(); };
+$('lSq').onclick = () => { const S = planes[act].group ? 1000 : planes[act].w; planes = [newPlane(0)]; act = 0; setSize(planes[0],S,S); diags = []; syncInputs(); renderTabs(); update(); };
 $('lCube').onclick = () => { const c = newCube(); planes = c; act = 0; diags = []; syncInputs(); renderTabs(); update(); };
 $('lsz').addEventListener('input', e => { const v = parseFloat(e.target.value); if(v > 0){ setSize(planes[act],v,v); syncInputs(); update(); } });
 $('lalpha').addEventListener('input', e => {
