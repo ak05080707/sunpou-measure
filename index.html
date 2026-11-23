@@ -355,7 +355,7 @@ function onTilt(e){
   const a = (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : (window.orientation || 0))*r;
   const sx = ux*Math.cos(a) - uy*Math.sin(a), sy = ux*Math.sin(a) + uy*Math.cos(a);
   tilt = {
-    sx, sy,
+    sx, sy, raw: 'β' + e.beta.toFixed(0) + ' γ' + e.gamma.toFixed(0) + ' 向き' + Math.round(a/r),
     roll: Math.atan2(sx,sy)/r,                              // 画面の水平（0なら水平）
     pitch: Math.asin(Math.max(-1,Math.min(1,-uz)))/r        // 上下の向き（0ならカメラが水平）
   };
@@ -393,6 +393,7 @@ function drawLevel(){
   const w = ctx.measureText(t).width + 22, y = Math.max(34, cy - L - 26);
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(cx-w/2,y-15,w,30,15) : ctx.rect(cx-w/2,y-15,w,30); ctx.fill();
   ctx.fillStyle = ok ? '#22c55e' : col(Math.max(lv,pv)); ctx.fillText(t,cx,y);
+  ctx.font = '12px sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('センサー値  ' + tilt.raw, cx, y + 26); // 確認用
   ctx.restore();
 }
 
