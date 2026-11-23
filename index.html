@@ -260,7 +260,7 @@ const C = p => ({x:p.x*cssW, y:p.y*cssH});
 
 function dot(p,color,r){
   const c = C(p);
-  ctx.beginPath(); ctx.arc(c.x,c.y,r+6,0,7); ctx.fillStyle = color; ctx.globalAlpha = .3; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(c.x,c.y,r+4,0,7); ctx.fillStyle = color; ctx.globalAlpha = .3; ctx.fill(); ctx.globalAlpha = 1;
   ctx.beginPath(); ctx.arc(c.x,c.y,r,0,7); ctx.fillStyle = color; ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
 }
@@ -304,7 +304,7 @@ function draw(){
         ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.stroke();
         if(pl.ok) label((A.x+B.x)/2,(A.y+B.y)/2, fmt(measure(pl,it[0],it[1]).len), col);
       }
-      it.forEach(p => dot(p,col,5));
+      it.forEach(p => dot(p,col,4));
     });
     // 面の名前
     const cx = (q[0].x+q[1].x+q[2].x+q[3].x)/4, cy = (q[0].y+q[1].y+q[2].y+q[3].y)/4;
@@ -321,7 +321,7 @@ function draw(){
       ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.setLineDash([9,6]); ctx.stroke(); ctx.setLineDash([]);
       label((A.x+B.x)/2,(A.y+B.y)/2,'3D '+fmt(len3(d)),col);
     }
-    d.pts.forEach(p => dot(p,col,6));
+    d.pts.forEach(p => dot(p,col,4));
   });
 
   // 角の取っ手（今の面。立方体なら7つの角すべて）
@@ -331,10 +331,10 @@ function draw(){
     const gp = cur.group ? planes.filter(p => p.group === cur.group) : [cur], seen = new Set();
     gp.forEach(pl => pl.quad.forEach((p,k) => {
       if(seen.has(p)) return; seen.add(p);
-      dot(p,col,11);
+      dot(p,col,6);
       if(!cur.group){
         const c = C(p);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(k+1,c.x,c.y+.5);
       }
     }));
