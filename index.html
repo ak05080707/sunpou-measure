@@ -340,8 +340,60 @@ function draw(){
     }));
   }
 
+  if(live) drawLevel();
   if(drag) loupe(drag.p);
   placeEdit();
+}
+
+/* ---------- 水平・垂直ガイド（iPhone/iPadの傾きセンサー） ---------- */
+let tilt = null, tiltOn = false;
+function onTilt(e){
+  if(e.beta == null || e.gamma == null) return;
+  const r = Math.PI/180, b = e.beta*r, g = e.gamma*r;
+  // 世界の「上」を、端末の座標で表す
+  const ux = -Math.cos(b)*Math.sin(g), uy = Math.sin(b), uz = Math.cos(b)*Math.cos(g);
+  const a = (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : (window.orientation || 0))*r;
+  const sx = ux*Math.cos(a) - uy*Math.sin(a), sy = ux*Math.sin(a) + uy*Math.cos(a);
+  tilt = {
+    sx, sy,
+    roll: Math.atan2(sx,sy)/r,                              // 画面の水平（0なら水平）
+    pitch: Math.asin(Math.max(-1,Math.min(1,-uz)))/r        // 上下の向き（0ならカメラが水平）
+  };
+}
+function startTilt(){
+  if(tiltOn || typeof DeviceOrientationEvent === 'undefined') return;
+  const go = () => { window.addEventListener('deviceorientation', onTilt); tiltOn = true; };
+  try{
+    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then(s => { if(s === 'granted') go(); }).catch(() => {});
+    } else go();
+  }catch(e){}
+}
+function drawLevel(){
+  if(!tilt) return;
+  const cx = cssW/2, cy = cssH/2, L = Math.min(cssW,cssH)*.32;
+  const lv = Math.abs(tilt.roll), pv = Math.abs(tilt.pitch);
+  const col = v => v < 1 ? '#22c55e' : v < 3 ? '#facc15' : '#ef4444';
+  // 実際の水平線（傾くと、斜めになる）
+  const dx = tilt.sy*L, dy = tilt.sx*L;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#000'; ctx.globalAlpha = .45; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(cx-dx,cy-dy); ctx.lineTo(cx+dx,cy+dy); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.strokeStyle = col(lv); ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(cx-dx,cy-dy); ctx.lineTo(cx+dx,cy+dy); ctx.stroke();
+  // 基準（まっすぐな目印）
+  ctx.strokeStyle = '#fff'; ctx.globalAlpha = .8; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx-L-14,cy); ctx.lineTo(cx-L+6,cy); ctx.moveTo(cx+L-6,cy); ctx.lineTo(cx+L+14,cy); ctx.stroke();
+  ctx.restore();
+  // 数字
+  const ok = lv < 1 && pv < 1;
+  const t = ok ? '✔ 水平・垂直 OK' : '水平 ' + tilt.roll.toFixed(1) + '°　上下 ' + (tilt.pitch >= 0 ? '↑' : '↓') + pv.toFixed(1) + '°';
+  ctx.save(); ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(t).width + 22, y = Math.max(34, cy - L - 26);
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(cx-w/2,y-15,w,30,15) : ctx.rect(cx-w/2,y-15,w,30); ctx.fill();
+  ctx.fillStyle = ok ? '#22c55e' : col(Math.max(lv,pv)); ctx.fillText(t,cx,y);
+  ctx.restore();
 }
 
 function loupe(p){
@@ -531,6 +583,7 @@ $('bClear').onclick = () => {
 
 /* ---------- カメラ（撮影しながら、四角・立方体を重ねる） ---------- */
 async function startCam(){
+  startTilt(); // iPhone/iPadは、ここで「動きと向き」の許可を聞かれます
   const msg = $('camMsg'); msg.textContent = '';
   try{
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nocam');
